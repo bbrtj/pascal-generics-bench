@@ -2,7 +2,7 @@ program Bench;
 
 {$mode objfpc}{$H+}{$J-}
 
-uses SysUtils, Classes, {$ifdef fgl}D5FGL{$else}D5Generics{$endif};
+uses SysUtils, Classes, {$ifdef fgl}D5FGL{$else}{$ifdef fglc}D5FGLC{$else}{$ifdef arrays}D5Arrays{$else}D5Generics{$endif}{$endif}{$endif};
 
 var
 	vLine: String;

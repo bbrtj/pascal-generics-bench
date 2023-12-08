@@ -6,8 +6,8 @@ use Time::HiRes qw(time);
 use IPC::Open3;
 
 my $type = lc(shift // '');
-die 'type required: either fgl or generics'
-	unless grep { $type eq $_ } qw(fgl generics);
+die 'type required: either arrays, fgl, fglc or generics'
+	unless grep { $type eq $_ } qw(arrays fgl fglc generics);
 
 sub timeit
 {
