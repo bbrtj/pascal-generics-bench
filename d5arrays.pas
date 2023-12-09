@@ -4,7 +4,7 @@ unit D5Arrays;
 
 interface
 
-uses SysUtils, Classes, FGL, Math;
+uses SysUtils, Classes, Math;
 
 function RunPart(Part: Integer; InputData: TStringList): String;
 
@@ -26,26 +26,35 @@ type
 		FLength: Integer;
 		FCount: Integer;
 		FItems: TRangeArray;
-		FFreeObjects: Boolean;
 
 		procedure AdjustLength(NewLength: Integer); inline;
 		function GetItem(Index: Integer): T; inline;
 		procedure SetItem(Index: Integer; Value: T); inline;
 
 	public
-		constructor Create(aFreeObjects: Boolean = True);
+		constructor Create();
 		destructor Destroy; override;
 
 		procedure Add(Item: T); inline;
 		procedure AddList(Other: TCustomList); inline;
-		procedure Clear(); inline;
+		procedure Clear(); virtual;
 
-		property FreeObjects: Boolean read FFreeObjects write FFreeObjects;
 		property Count: Integer read FCount;
 		property Items[Index: Integer]: T read GetItem write SetItem; default;
 	end;
 
-	TRangeList = specialize TCustomList<TRange>;
+	generic TCustomObjectList<T> = class(specialize TCustomList<T>)
+	private
+		FFreeObjects: Boolean;
+
+	public
+		constructor Create(aFreeObjects: Boolean = True);
+		procedure Clear(); override;
+
+		property FreeObjects: Boolean read FFreeObjects write FFreeObjects;
+	end;
+
+	TRangeList = specialize TCustomObjectList<TRange>;
 
 	TMapping = class
 	strict private
@@ -60,8 +69,8 @@ type
 		function TryMapRange(Range: TRange; RangesMapped, RangesUnmapped: TRangeList): Boolean;
 	end;
 
-	TMappingList = specialize TFPGObjectList<TMapping>;
-	TNumberList = specialize TFPGList<TNumber>;
+	TMappingList = specialize TCustomObjectList<TMapping>;
+	TNumberList = specialize TCustomList<TNumber>;
 
 	TAlmanacMap = class
 	strict private
@@ -76,7 +85,7 @@ type
 		procedure MapRanges(Range: TRange; RangeList: TRangeList);
 	end;
 
-	TAlmanacMapList = specialize TFPGObjectList<TAlmanacMap>;
+	TAlmanacMapList = specialize TCustomObjectList<TAlmanacMap>;
 
 implementation
 
@@ -113,6 +122,35 @@ begin
 	end;
 end;
 
+function PartOne(Numbers: TNumberList; Maps: TAlmanacMapList): TNumber;
+var
+	lNumbers: TNumberList;
+	lNewNumbers: TNumberList;
+	i, j: Integer;
+begin
+	lNumbers := TNumberList.Create;
+	lNewNumbers := TNumberList.Create;
+
+	lNumbers.AddList(Numbers);
+
+	for i := 0 to Maps.Count - 1 do begin
+		for j := 0 to lNumbers.Count - 1 do
+			lNewNumbers.Add(Maps[i].MapNumber(lNumbers[j]));
+
+		lNumbers.Clear;
+		lNumbers.AddList(lNewNumbers);
+		lNewNumbers.Clear;
+	end;
+
+	lNewNumbers.Free;
+
+	result := lNumbers[0];
+	for i := 0 to lNumbers.Count - 1 do
+		result := Min(result, lNumbers[i]);
+
+	lNumbers.Free;
+end;
+
 function PartTwo(Numbers: TNumberList; Maps: TAlmanacMapList): TNumber;
 var
 	lRanges: TRangeList;
@@ -132,7 +170,7 @@ begin
 
 	for i := 0 to Maps.Count - 1 do begin
 		for j := 0 to lRanges.Count - 1 do begin
-			Maps[i].MapRanges(lRanges.Items[j], lNewRanges);
+			Maps[i].MapRanges(lRanges[j], lNewRanges);
 		end;
 
 		lRanges.Clear;
@@ -142,9 +180,9 @@ begin
 
 	lNewRanges.Free;
 
-	result := lRanges.Items[0].Lower;
+	result := lRanges[0].Lower;
 	for i := 0 to lRanges.Count - 1 do
-		result := Min(result, lRanges.Items[i].Lower);
+		result := Min(result, lRanges[i].Lower);
 
 	lRanges.FreeObjects := True;
 	lRanges.Free;
@@ -160,6 +198,7 @@ begin
 	ParseInput(InputData, lNumbers, lMaps);
 
 	case Part of
+		1: result := IntToStr(PartOne(lNumbers, lMaps));
 		2: result := IntToStr(PartTwo(lNumbers, lMaps));
 		else
 			result := 'No such part number!';
@@ -175,16 +214,16 @@ begin
 	self.Upper := aUpper;
 end;
 
-constructor TCustomList.Create(aFreeObjects: Boolean = True);
+constructor TCustomList.Create();
 begin
 	self.AdjustLength(2);
-	FFreeObjects := aFreeObjects;
 	FCount := 0;
 end;
 
 destructor TCustomList.Destroy;
 begin
 	self.Clear;
+	inherited;
 end;
 
 function TCustomList.GetItem(Index: Integer): T;
@@ -221,17 +260,27 @@ begin
 end;
 
 procedure TCustomList.Clear();
+begin
+	FCount := 0;
+end;
+
+constructor TCustomObjectList.Create(aFreeObjects: Boolean = True);
+begin
+	inherited Create;
+	FFreeObjects := aFreeObjects;
+end;
+
+procedure TCustomObjectList.Clear();
 var
 	i: Integer;
 begin
 	if FFreeObjects then begin
-		for i := FCount - 1 downto 0 do
-			FItems[i].Free;
+		for i := 0 to self.Count - 1 do
+			self.Items[i].Free;
 	end;
 
 	FCount := 0;
 end;
-
 
 constructor TMapping.Create(aLower, aUpper, MapTo: TNumber);
 begin
@@ -311,8 +360,8 @@ begin
 
 	for i := 0 to FMappings.Count - 1 do begin
 		for j := 0 to lRanges.Count - 1 do begin
-			if not FMappings[i].TryMapRange(lRanges.Items[j], RangeList, lNewRanges) then
-				lNewRanges.Add(lRanges.Items[j]);
+			if not FMappings[i].TryMapRange(lRanges[j], RangeList, lNewRanges) then
+				lNewRanges.Add(lRanges[j]);
 		end;
 
 		lRanges.Clear;
