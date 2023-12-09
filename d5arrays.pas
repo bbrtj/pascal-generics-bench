@@ -20,24 +20,29 @@ type
 
 	generic TCustomList<T> = class
 	private
-		type
-			TRangeArray = array of T;
-		var
-			FLength: Integer;
+		type TRangeArray = array of T;
 
-		procedure AdjustLength(NewLength: Integer);
+	private
+		FLength: Integer;
+		FCount: Integer;
+		FItems: TRangeArray;
+		FFreeObjects: Boolean;
+
+		procedure AdjustLength(NewLength: Integer); inline;
+		function GetItem(Index: Integer): T; inline;
+		procedure SetItem(Index: Integer; Value: T); inline;
 
 	public
-		Items: TRangeArray;
-		Count: Integer;
-		FreeObjects: Boolean;
-
 		constructor Create(aFreeObjects: Boolean = True);
 		destructor Destroy; override;
 
-		procedure Add(Item: T);
-		procedure AddList(Other: TCustomList);
-		procedure Clear();
+		procedure Add(Item: T); inline;
+		procedure AddList(Other: TCustomList); inline;
+		procedure Clear(); inline;
+
+		property FreeObjects: Boolean read FFreeObjects write FFreeObjects;
+		property Count: Integer read FCount;
+		property Items[Index: Integer]: T read GetItem write SetItem; default;
 	end;
 
 	TRangeList = specialize TCustomList<TRange>;
@@ -173,8 +178,8 @@ end;
 constructor TCustomList.Create(aFreeObjects: Boolean = True);
 begin
 	self.AdjustLength(2);
-	self.FreeObjects := aFreeObjects;
-	self.Count := 0;
+	FFreeObjects := aFreeObjects;
+	FCount := 0;
 end;
 
 destructor TCustomList.Destroy;
@@ -182,19 +187,29 @@ begin
 	self.Clear;
 end;
 
+function TCustomList.GetItem(Index: Integer): T;
+begin
+	result := FItems[Index];
+end;
+
+procedure TCustomList.SetItem(Index: Integer; Value: T);
+begin
+	FItems[Index] := Value;
+end;
+
 procedure TCustomList.AdjustLength(NewLength: Integer);
 begin
 	FLength := NewLength;
-	SetLength(self.Items, NewLength);
+	SetLength(FItems, NewLength);
 end;
 
 procedure TCustomList.Add(Item: T);
 begin
-	self.Items[self.Count] := Item;
+	FItems[FCount] := Item;
 
-	Inc(self.Count);
-	if self.Count = FLength then
-		AdjustLength(FLength * 2);
+	Inc(FCount);
+	if FCount = FLength then
+		self.AdjustLength(FLength * 2);
 end;
 
 procedure TCustomList.AddList(Other: TCustomList);
@@ -202,19 +217,19 @@ var
 	i: Integer;
 begin
 	for i := 0 to Other.Count - 1 do
-		self.Add(Other.Items[i]);
+		self.Add(Other[i]);
 end;
 
 procedure TCustomList.Clear();
 var
 	i: Integer;
 begin
-	if self.FreeObjects then begin
-		for i := self.Count - 1 downto 0 do
-			self.Items[i].Free;
+	if FFreeObjects then begin
+		for i := FCount - 1 downto 0 do
+			FItems[i].Free;
 	end;
 
-	self.Count := 0;
+	FCount := 0;
 end;
 
 
